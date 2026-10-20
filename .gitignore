@@ -41,3 +41,14 @@ example
 # generated native folders
 /ios
 /android
+# Variables de entorno privadas
+.env
+.env.*
+!.env.example
+
+# Copias de seguridad
+*.bak
+
+# Dependencias
+node_modules/
+backend/node_modules/
