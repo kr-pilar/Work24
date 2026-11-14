@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "692357548547",
+    "project_id": "work24-ae3c4",
+    "storage_bucket": "work24-ae3c4.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:692357548547:android:d12581c0494650ee979c36",
+        "android_client_info": {
+          "package_name": "com.work24.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "692357548547-gll7iurpiub467eh3lfqo81gnls2k311.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.work24.app",
+            "certificate_hash": "92d3a2eb6b4b9c71c1ce4523177fe8dd16a12c64"
+          }
+        },
+        {
+          "client_id": "692357548547-aqc6q7r0ulbl71quqrc4c8hojjr0234b.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzhqcYgRjPMl7_b8lEFM11KyYlUrWbPPg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "692357548547-aqc6q7r0ulbl71quqrc4c8hojjr0234b.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

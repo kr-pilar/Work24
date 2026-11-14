@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import {
   Alert,
@@ -8,6 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { router } from 'expo-router';
+import { API_URL } from '../config/api';
+import { guardarSesion } from '../storageSesion';
 
 const PROFESIONES_INICIALES = [
   'Electricista',
@@ -25,6 +29,7 @@ const PROFESIONES_INICIALES = [
 export default function RegistroProfesional() {
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
+  const [dni, setDni] = useState('');
   const [email, setEmail] = useState('');
   const [telefono, setTelefono] = useState('');
   const [contrasena, setContrasena] = useState('');
@@ -34,6 +39,9 @@ export default function RegistroProfesional() {
   const [tienenMatricula, setTienenMatricula] = useState<string[]>([]);
   const [otroOficio, setOtroOficio] = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [enviando, setEnviando] = useState(false);
+  const [autorizaContactoWhatsapp, setAutorizaContactoWhatsapp] =
+    useState(false);
 
   function seleccionarProfesion(profesion: string) {
     if (profesiones.includes(profesion)) {
@@ -99,6 +107,7 @@ export default function RegistroProfesional() {
       } else {
         setProfesiones([...profesiones, oficio]);
         setOtroOficio('');
+
         Alert.alert(
           'Oficio agregado',
           `${oficio} fue agregado a tu selección.`
@@ -108,92 +117,129 @@ export default function RegistroProfesional() {
   }
 
   async function crearCuenta() {
-  if (
-    nombre === '' ||
-    apellido === '' ||
-    email === '' ||
-    telefono === '' ||
-    contrasena === '' ||
-    confirmarContrasena === '' ||
-    descripcion === ''
-  ) {
-    Alert.alert(
-      'Faltan datos',
-      'Completá todos los campos obligatorios.'
-    );
-  } else if (profesiones.length === 0) {
-    Alert.alert(
-      'Falta profesión',
-      'Seleccioná al menos una profesión u oficio.'
-    );
-  } else if (contrasena !== confirmarContrasena) {
-    Alert.alert(
-      'Error',
-      'Las contraseñas no coinciden.'
-    );
-  } else {
-    let matriculasValidas = true;
-
-    tienenMatricula.forEach((profesion) => {
-      if (
-        matriculas[profesion] === undefined ||
-        matriculas[profesion].trim() === ''
-      ) {
-        matriculasValidas = false;
-      }
-    });
-
-    if (!matriculasValidas) {
+    if (
+      nombre.trim() === '' ||
+      apellido.trim() === '' ||
+      dni.trim() === '' ||
+      email.trim() === '' ||
+      telefono.trim() === '' ||
+      contrasena === '' ||
+      confirmarContrasena === '' ||
+      descripcion.trim() === ''
+    ) {
       Alert.alert(
-        'Falta matrícula',
-        'Completá la matrícula de cada profesión en la que indicaste que estás matriculado.'
+        'Faltan datos',
+        'Completá todos los campos obligatorios.'
+      );
+    } else if (!autorizaContactoWhatsapp) {
+      Alert.alert(
+        'Autorización obligatoria',
+        'Debés autorizar a Work24 a compartir tu teléfono con los clientes que habiliten el contacto.'
+      );
+    } else if (profesiones.length === 0) {
+      Alert.alert(
+        'Falta profesión',
+        'Seleccioná al menos una profesión u oficio.'
+      );
+    } else if (contrasena !== confirmarContrasena) {
+      Alert.alert(
+        'Error',
+        'Las contraseñas no coinciden.'
+      );
+    } else if (contrasena.length < 8) {
+      Alert.alert(
+        'Contraseña demasiado corta',
+        'La contraseña debe tener al menos 8 caracteres.'
       );
     } else {
-      const { guardarUsuarios, obtenerUsuarios } = await import('../storage');
+      let matriculasValidas = true;
 
-      const usuarios = await obtenerUsuarios();
+      tienenMatricula.forEach((profesion) => {
+        if (
+          matriculas[profesion] === undefined ||
+          matriculas[profesion].trim() === ''
+        ) {
+          matriculasValidas = false;
+        }
+      });
 
-      const usuarioExistente = usuarios.find(
-        (usuario: any) =>
-          usuario.email.toLowerCase() === email.toLowerCase()
-      );
-
-      if (usuarioExistente) {
+      if (!matriculasValidas) {
         Alert.alert(
-          'Email existente',
-          'Ya existe una cuenta registrada con ese email.'
+          'Falta matrícula',
+          'Completá la matrícula de cada profesión en la que indicaste que estás matriculado.'
         );
       } else {
-        const datosMatriculas = profesiones.map((profesion) => ({
-          profesion: profesion,
-          tieneMatricula: tienenMatricula.includes(profesion),
-          matricula: matriculas[profesion] || '',
-        }));
+        setEnviando(true);
 
-        const nuevoUsuario = {
-          id: Date.now(),
-          nombre: nombre,
-          apellido: apellido,
-          email: email,
-          telefono: telefono,
-          contrasena: contrasena,
-          tipo: 'profesional',
-          profesiones: datosMatriculas,
-          descripcion: descripcion,
-        };
+        try {
+          const datosMatriculas = profesiones.map((profesion) => ({
+            profesion: profesion,
+            tieneMatricula: tienenMatricula.includes(profesion),
+            matricula: tienenMatricula.includes(profesion)
+              ? matriculas[profesion].trim()
+              : '',
+          }));
 
-        usuarios.push(nuevoUsuario);
+          const respuesta = await fetch(
+            `${API_URL}/auth/registro-profesional`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                nombre: nombre.trim(),
+                apellido: apellido.trim(),
+                dni: dni.trim(),
+                email: email.trim(),
+                telefono: telefono.trim(),
+                contrasena: contrasena,
+                autorizaContactoWhatsapp: true,
+                profesiones: datosMatriculas,
+                descripcion: descripcion.trim(),
+              }),
+            }
+          );
 
-        await guardarUsuarios(usuarios);
+          const datos = await respuesta.json();
 
-        Alert.alert(
-          'Cuenta creada',
-          'El registro del profesional se realizó correctamente.'
-        );
+          if (!respuesta.ok) {
+            Alert.alert(
+              'No se pudo crear la cuenta',
+              datos.error || 'Ocurrió un error durante el registro.'
+            );
+          } else {
+            await guardarSesion(datos.token, datos.usuario);
+
+            Alert.alert(
+              'Cuenta creada',
+              'El registro del profesional se realizó correctamente.',
+              [
+                {
+                  text: 'Continuar',
+                  onPress: () => router.replace('/inicio-profesional'),
+                },
+              ]
+            );
+          }
+        } catch (error) {
+          Alert.alert(
+            'Error de conexión',
+            'No se pudo conectar con el servidor de Work24. Verificá que el backend esté funcionando y que el teléfono esté conectado a la misma red Wi-Fi.'
+          );
+        } finally {
+          setEnviando(false);
+        }
       }
     }
   }
-}
+
+  const profesionesParaMostrar = [
+    ...PROFESIONES_INICIALES,
+    ...profesiones.filter(
+      (item) => !PROFESIONES_INICIALES.includes(item)
+    ),
+  ];
 
   return (
     <ScrollView contentContainerStyle={estilos.contenedor}>
@@ -217,9 +263,18 @@ export default function RegistroProfesional() {
 
       <TextInput
         style={estilos.input}
+        placeholder="DNI"
+        keyboardType="numeric"
+        value={dni}
+        onChangeText={setDni}
+      />
+
+      <TextInput
+        style={estilos.input}
         placeholder="Email"
         keyboardType="email-address"
         autoCapitalize="none"
+        autoCorrect={false}
         value={email}
         onChangeText={setEmail}
       />
@@ -256,7 +311,7 @@ export default function RegistroProfesional() {
         Podés seleccionar más de una profesión.
       </Text>
 
-      {PROFESIONES_INICIALES.map((profesion) => (
+      {profesionesParaMostrar.map((profesion) => (
         <View key={profesion}>
           <TouchableOpacity
             style={
@@ -332,11 +387,35 @@ export default function RegistroProfesional() {
       />
 
       <TouchableOpacity
-        style={estilos.boton}
+        style={estilos.autorizacion}
+        onPress={() =>
+          setAutorizaContactoWhatsapp(!autorizaContactoWhatsapp)
+        }
+        activeOpacity={0.8}
+      >
+        <Text style={estilos.textoAutorizacion}>
+          {autorizaContactoWhatsapp ? '☑' : '☐'} Autorizo el contacto por WhatsApp
+        </Text>
+      </TouchableOpacity>
+
+      <Text style={estilos.ayudaAutorizacion}>
+        Autorizo a Work24 a compartir mi número de teléfono con los
+        clientes que hayan habilitado el contacto conmigo. Mi número
+        no será público y solo se compartirá cuando Work24 valide el
+        contacto. Esta autorización es obligatoria para ofrecer mis
+        servicios y puedo revocarla desde mi cuenta.
+      </Text>
+
+      <TouchableOpacity
+        style={[
+          estilos.boton,
+          enviando && estilos.botonDeshabilitado,
+        ]}
         onPress={crearCuenta}
+        disabled={enviando}
       >
         <Text style={estilos.textoBoton}>
-          Crear cuenta
+          {enviando ? 'Creando cuenta...' : 'Crear cuenta'}
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -430,6 +509,29 @@ const estilos = StyleSheet.create({
     textAlignVertical: 'top',
   },
 
+  autorizacion: {
+    borderWidth: 2,
+    borderColor: '#0055cc',
+    borderRadius: 8,
+    padding: 14,
+    marginTop: 15,
+    marginBottom: 8,
+    backgroundColor: '#eef5ff',
+  },
+
+  textoAutorizacion: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#003399',
+  },
+
+  ayudaAutorizacion: {
+    fontSize: 14,
+    lineHeight: 21,
+    color: '#333333',
+    marginBottom: 15,
+  },
+
   boton: {
     backgroundColor: '#000000',
     padding: 16,
@@ -437,6 +539,10 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     marginTop: 10,
     marginBottom: 30,
+  },
+
+  botonDeshabilitado: {
+    opacity: 0.5,
   },
 
   textoBoton: {

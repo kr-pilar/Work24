@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "work24",
@@ -11,6 +12,8 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "package": "com.work24.app",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -26,17 +29,35 @@
     "plugins": [
       "expo-router",
       [
+        "react-native-nitro-google-signin",
+        {
+          "androidGoogleServicesFile": "./google-services.json"
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "backgroundColor": "#208AEF",
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Work24 necesita tu ubicación para calcular distancias entre clientes y profesionales."
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "1f1eae1c-0f7f-4e35-b196-3987a23e731d"
+      }
     }
   }
 }

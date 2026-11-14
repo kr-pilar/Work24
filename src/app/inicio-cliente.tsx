@@ -1,3 +1,4 @@
+
 import {
   ScrollView,
   StyleSheet,
@@ -138,9 +139,21 @@ export default function InicioCliente() {
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity style={estilos.botonTrabajo} onPress={() => router.push('/nuevo-trabajo')}>
+      <TouchableOpacity
+        style={estilos.botonTrabajo}
+        onPress={() => router.push('/nuevo-trabajo')}
+      >
         <Text style={estilos.textoTrabajo}>
           + Nuevo trabajo
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={estilos.botonMisTrabajos}
+        onPress={() => router.push('/mis-trabajos')}
+      >
+        <Text style={estilos.textoMisTrabajos}>
+          Mi perfil
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -257,12 +270,29 @@ const estilos = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     marginTop: 5,
-    marginBottom: 20,
+    marginBottom: 10,
   },
 
   textoTrabajo: {
     color: '#ffffff',
     fontSize: 18,
+    fontWeight: 'bold',
+  },
+
+  botonMisTrabajos: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 2,
+    borderColor: '#0756D8',
+    padding: 16,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 5,
+    marginBottom: 25,
+  },
+
+  textoMisTrabajos: {
+    color: '#0756D8',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

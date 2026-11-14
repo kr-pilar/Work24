@@ -1,191 +1,312 @@
+
+import { useEffect, useState } from 'react';
 import {
+  View,
+  Text,
   ScrollView,
   StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+  ActivityIndicator,
+  Pressable
 } from 'react-native';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { API_URL } from '../config/api';
 
-export default function PerfilProfesional() {
+type Profesion = {
+  nombre: string;
+  tiene_matricula: boolean;
+  matricula: string | null;
+};
+
+type Calificacion = {
+  calidad: number;
+  precio: number;
+  trato: number;
+  comentario: string | null;
+  fecha_creacion: string;
+};
+
+type Perfil = {
+  profesional_id: number;
+  nombre: string;
+  apellido: string;
+  descripcion: string | null;
+  estado_disponibilidad: boolean;
+  profesiones: Profesion[];
+  trabajos_completados: number;
+  promedio_calificacion: string | null;
+  cantidad_valoraciones: number;
+  calificaciones: Calificacion[];
+};
+
+export default function PerfilProfesionalScreen() {
+  const { profesionalId } = useLocalSearchParams<{
+    profesionalId: string;
+  }>();
+
+  const router = useRouter();
+
+  const [perfil, setPerfil] = useState<Perfil | null>(null);
+  const [cargando, setCargando] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function cargarPerfil() {
+      try {
+        setCargando(true);
+        setError('');
+
+        const id = Array.isArray(profesionalId)
+          ? profesionalId[0]
+          : profesionalId;
+
+        if (!id || !/^[1-9]\d*$/.test(id)) {
+          setError('Identificador de profesional inválido.');
+        } else {
+          const respuesta = await fetch(
+            `${API_URL}/profesionales/${id}`
+          );
+
+          const datos = await respuesta.json();
+
+          if (!respuesta.ok) {
+            setError(datos.error || 'No se pudo cargar el perfil.');
+          } else {
+            setPerfil(datos);
+          }
+        }
+      } catch (e) {
+        setError('No se pudo conectar con el servidor de Work24.');
+      } finally {
+        setCargando(false);
+      }
+    }
+
+    cargarPerfil();
+  }, [profesionalId]);
+
+  if (cargando) {
+    return (
+      <View style={estilos.centrado}>
+        <ActivityIndicator size="large" color="#1565C0" />
+        <Text style={estilos.textoCargando}>
+          Cargando perfil...
+        </Text>
+      </View>
+    );
+  }
+
+  if (error || !perfil) {
+    return (
+      <View style={estilos.contenedor}>
+        <Text style={estilos.error}>{error}</Text>
+
+        <Pressable
+          style={estilos.boton}
+          onPress={() => router.back()}
+        >
+          <Text style={estilos.textoBoton}>Volver</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
-    <ScrollView contentContainerStyle={estilos.contenedor}>
-      <Text style={estilos.titulo}>
-        Perfil profesional
-      </Text>
+    <ScrollView style={estilos.contenedor}>
+      <Pressable
+        style={estilos.volver}
+        onPress={() => router.back()}
+      >
+        <Text style={estilos.textoVolver}>← Volver</Text>
+      </Pressable>
 
-      <View style={estilos.perfil}>
+      <View style={estilos.encabezado}>
         <Text style={estilos.nombre}>
-          Juan Pérez
+          {perfil.nombre} {perfil.apellido}
         </Text>
 
-        <Text style={estilos.profesion}>
-          Electricista
-        </Text>
-
-        <Text style={estilos.dato}>
-          ⭐ 4.8 / 5
-        </Text>
-
-        <Text style={estilos.dato}>
-          🟢 Disponible
-        </Text>
-
-        <Text style={estilos.dato}>
-          📍 1.2 km
-        </Text>
-
-        <Text style={estilos.matricula}>
-          ✓ Matriculado
+        <Text style={estilos.disponibilidad}>
+          {perfil.estado_disponibilidad
+            ? 'Disponible'
+            : 'No disponible'}
         </Text>
       </View>
 
-      <Text style={estilos.subtitulo}>
-        Descripción
-      </Text>
+      <View style={estilos.tarjeta}>
+        <Text style={estilos.titulo}>Profesiones</Text>
 
-      <View style={estilos.seccion}>
-        <Text style={estilos.descripcion}>
-          Electricista especializado en instalaciones
-          domiciliarias, reparación de instalaciones
-          eléctricas y colocación de luces.
+        {perfil.profesiones.map((profesion, indice) => (
+          <View key={`${profesion.nombre}-${indice}`}>
+            <Text style={estilos.texto}>
+              • {profesion.nombre}
+            </Text>
+
+            {profesion.tiene_matricula && (
+              <Text style={estilos.matricula}>
+                Matriculado · {profesion.matricula}
+              </Text>
+            )}
+          </View>
+        ))}
+      </View>
+
+      <View style={estilos.tarjeta}>
+        <Text style={estilos.titulo}>Descripción</Text>
+        <Text style={estilos.texto}>
+          {perfil.descripcion || 'Sin descripción disponible.'}
         </Text>
       </View>
 
-      <Text style={estilos.subtitulo}>
-        Valoraciones
-      </Text>
+      <View style={estilos.tarjeta}>
+        <Text style={estilos.titulo}>Experiencia en Work24</Text>
 
-      <View style={estilos.seccion}>
-        <Text style={estilos.valoracion}>
-          Calidad del trabajo
+        <Text style={estilos.texto}>
+          Trabajos finalizados: {perfil.trabajos_completados}
         </Text>
 
-        <Text style={estilos.estrellas}>
-          ⭐ 4.9 / 5
+        <Text style={estilos.puntuacion}>
+          {perfil.promedio_calificacion
+            ? `${perfil.promedio_calificacion} / 5 estrellas`
+            : 'Sin valoraciones'}
         </Text>
 
-        <Text style={estilos.valoracion}>
-          Precio
-        </Text>
-
-        <Text style={estilos.estrellas}>
-          ⭐ 4.7 / 5
-        </Text>
-
-        <Text style={estilos.valoracion}>
-          Trato profesional
-        </Text>
-
-        <Text style={estilos.estrellas}>
-          ⭐ 4.8 / 5
+        <Text style={estilos.texto}>
+          Cantidad de valoraciones: {perfil.cantidad_valoraciones}
         </Text>
       </View>
 
-      <Text style={estilos.subtitulo}>
-        Trabajos realizados
-      </Text>
+      <View style={estilos.tarjeta}>
+        <Text style={estilos.titulo}>Opiniones de clientes</Text>
 
-      <View style={estilos.seccion}>
-        <Text style={estilos.descripcion}>
-          Próximamente se mostrarán fotos de trabajos
-          realizados por este profesional.
-        </Text>
+        {perfil.calificaciones.length === 0 ? (
+          <Text style={estilos.texto}>
+            Todavía no tiene opiniones.
+          </Text>
+        ) : (
+          perfil.calificaciones.map((calificacion, indice) => (
+            <View
+              key={`${calificacion.fecha_creacion}-${indice}`}
+              style={estilos.opinion}
+            >
+              <Text style={estilos.texto}>
+                Calidad: {calificacion.calidad}/5
+              </Text>
+
+              <Text style={estilos.texto}>
+                Precio: {calificacion.precio}/5
+              </Text>
+
+              <Text style={estilos.texto}>
+                Trato: {calificacion.trato}/5
+              </Text>
+
+              {calificacion.comentario ? (
+                <Text style={estilos.comentario}>
+                  "{calificacion.comentario}"
+                </Text>
+              ) : null}
+            </View>
+          ))
+        )}
       </View>
-
-      <TouchableOpacity style={estilos.boton}>
-        <Text style={estilos.textoBoton}>
-          Contactar profesional
-        </Text>
-      </TouchableOpacity>
     </ScrollView>
   );
 }
 
 const estilos = StyleSheet.create({
   contenedor: {
-    padding: 20,
-    backgroundColor: '#ffffff',
+    flex: 1,
+    backgroundColor: '#F2F5F9',
+    padding: 18
   },
-
-  titulo: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginTop: 20,
-    marginBottom: 25,
+  centrado: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F2F5F9'
   },
-
-  perfil: {
-    borderWidth: 1,
-    borderColor: '#cccccc',
+  textoCargando: {
+    marginTop: 12,
+    fontSize: 16
+  },
+  volver: {
+    marginBottom: 20
+  },
+  textoVolver: {
+    color: '#1565C0',
+    fontSize: 17,
+    fontWeight: 'bold'
+  },
+  encabezado: {
+    backgroundColor: '#1565C0',
+    padding: 22,
     borderRadius: 12,
-    padding: 18,
-    marginBottom: 25,
+    marginBottom: 15
   },
-
   nombre: {
+    color: '#FFFFFF',
     fontSize: 25,
-    fontWeight: 'bold',
-    marginBottom: 5,
+    fontWeight: 'bold'
   },
-
-  profesion: {
+  disponibilidad: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    marginTop: 8
+  },
+  tarjeta: {
+    backgroundColor: '#FFFFFF',
+    padding: 18,
+    borderRadius: 12,
+    marginBottom: 15
+  },
+  titulo: {
     fontSize: 19,
-    marginBottom: 12,
-  },
-
-  dato: {
-    fontSize: 16,
-    marginBottom: 7,
-  },
-
-  matricula: {
-    fontSize: 16,
     fontWeight: 'bold',
-    marginTop: 5,
+    color: '#1565C0',
+    marginBottom: 12
   },
-
-  subtitulo: {
+  texto: {
+    fontSize: 16,
+    color: '#222222',
+    marginBottom: 7
+  },
+  matricula: {
+    color: '#16713A',
+    fontSize: 14,
+    marginLeft: 16,
+    marginBottom: 8
+  },
+  puntuacion: {
     fontSize: 21,
     fontWeight: 'bold',
-    marginBottom: 12,
+    color: '#D97706',
+    marginVertical: 8
   },
-
-  seccion: {
-    borderWidth: 1,
-    borderColor: '#cccccc',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 25,
+  opinion: {
+    borderTopWidth: 1,
+    borderTopColor: '#DDDDDD',
+    paddingTop: 12,
+    marginTop: 8
   },
-
-  descripcion: {
-    fontSize: 16,
-    lineHeight: 24,
+  comentario: {
+    fontSize: 15,
+    color: '#444444',
+    fontStyle: 'italic',
+    marginTop: 8
   },
-
-  valoracion: {
+  error: {
+    color: '#C00000',
     fontSize: 17,
-    fontWeight: 'bold',
-    marginBottom: 4,
+    marginBottom: 20
   },
-
-  estrellas: {
-    fontSize: 16,
-    marginBottom: 15,
-  },
-
   boton: {
-    backgroundColor: '#000000',
-    padding: 17,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginBottom: 20,
+    backgroundColor: '#1565C0',
+    padding: 15,
+    borderRadius: 8,
+    alignItems: 'center'
   },
-
   textoBoton: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: 'bold'
+  }
 });

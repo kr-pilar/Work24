@@ -1,4 +1,12 @@
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+
+import {
+  Alert,
+  Linking,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 
 export default function SolicitudEnviada() {
@@ -8,14 +16,64 @@ export default function SolicitudEnviada() {
     descripcion,
     ubicacion,
     urgencia,
+    tipoContacto,
+    telefonoWhatsapp,
   } = useLocalSearchParams<{
     profesional: string;
     titulo: string;
     descripcion: string;
     ubicacion: string;
     urgencia: string;
+    tipoContacto: string;
+    telefonoWhatsapp?: string;
   }>();
 
+  let mensajeBeneficio = 'Tu contacto fue registrado gratuitamente.';
+
+  if (tipoContacto === 'primer_trabajo_gratis') {
+    mensajeBeneficio =
+      '¡Usaste uno de los 3 contactos gratuitos de tu primer trabajo!';
+  } else if (tipoContacto === 'profesional_nuevo_gratis') {
+    mensajeBeneficio =
+      '¡Este contacto fue gratuito porque el profesional es nuevo en Work24!';
+  }
+
+  const telefonoValido = /^549\d{10}$/.test(
+    telefonoWhatsapp || ''
+  );
+
+  async function abrirWhatsApp() {
+    if (!telefonoValido) {
+      Alert.alert(
+        'Contacto no disponible',
+        'Work24 no recibió un teléfono válido para este contacto.'
+      );
+    } else {
+      const mensaje =
+        `Hola, te contacto desde Work24 por el trabajo "${titulo}".`;
+
+      const texto = encodeURIComponent(mensaje);
+
+      const enlaceDirecto =
+        `whatsapp://send?phone=${telefonoWhatsapp}&text=${texto}`;
+
+      const enlaceAlternativo =
+        `https://api.whatsapp.com/send?phone=${telefonoWhatsapp}&text=${texto}`;
+
+      try {
+        await Linking.openURL(enlaceDirecto);
+      } catch (error) {
+        try {
+          await Linking.openURL(enlaceAlternativo);
+        } catch (errorAlternativo) {
+          Alert.alert(
+            'No se pudo abrir WhatsApp',
+            'Verificá que WhatsApp esté instalado y actualizado en tu teléfono.'
+          );
+        }
+      }
+    }
+  }
   function volverAlInicio() {
     router.replace('/inicio-cliente');
   }
@@ -29,8 +87,18 @@ export default function SolicitudEnviada() {
       </Text>
 
       <Text style={estilos.subtitulo}>
-        Tu solicitud fue enviada al profesional.
+        Tu solicitud fue registrada correctamente.
       </Text>
+
+      <View style={estilos.beneficio}>
+        <Text style={estilos.beneficioTitulo}>
+          Contacto gratuito
+        </Text>
+
+        <Text style={estilos.beneficioTexto}>
+          {mensajeBeneficio}
+        </Text>
+      </View>
 
       <View style={estilos.tarjeta}>
         <Text style={estilos.etiqueta}>
@@ -70,13 +138,25 @@ export default function SolicitudEnviada() {
 
       <View style={estilos.estado}>
         <Text style={estilos.estadoTitulo}>
-          Estado de la solicitud
+          Estado del contacto
         </Text>
 
         <Text style={estilos.estadoTexto}>
-          🟡 Pendiente de aceptación
+          Contacto habilitado. Coordiná directamente con el profesional
+          por WhatsApp.
         </Text>
       </View>
+
+      {telefonoValido && (
+        <TouchableOpacity
+          style={estilos.botonWhatsapp}
+          onPress={abrirWhatsApp}
+        >
+          <Text style={estilos.textoBoton}>
+            Contactar por WhatsApp
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <TouchableOpacity
         style={estilos.boton}
@@ -114,7 +194,25 @@ const estilos = StyleSheet.create({
   subtitulo: {
     fontSize: 16,
     textAlign: 'center',
-    marginBottom: 25,
+    marginBottom: 20,
+  },
+
+  beneficio: {
+    backgroundColor: '#e8f5e9',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 15,
+  },
+
+  beneficioTitulo: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    marginBottom: 6,
+  },
+
+  beneficioTexto: {
+    fontSize: 15,
+    lineHeight: 21,
   },
 
   tarjeta: {
@@ -167,6 +265,14 @@ const estilos = StyleSheet.create({
 
   estadoTexto: {
     fontSize: 16,
+  },
+
+  botonWhatsapp: {
+    backgroundColor: '#128c45',
+    padding: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    marginBottom: 12,
   },
 
   boton: {
