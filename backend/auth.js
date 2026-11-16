@@ -234,6 +234,18 @@ router.post('/registro-profesional', async (req, res) => {
             : '';
 
     const descripcion = texto(req.body.descripcion);
+    const ubicacionHabitual = texto(req.body.ubicacionHabitual);
+
+    const coordenadasPresentes =
+        req.body.latitudHabitual !== null &&
+        req.body.latitudHabitual !== undefined &&
+        req.body.latitudHabitual !== '' &&
+        req.body.longitudHabitual !== null &&
+        req.body.longitudHabitual !== undefined &&
+        req.body.longitudHabitual !== '';
+
+    const latitudHabitual = Number(req.body.latitudHabitual);
+    const longitudHabitual = Number(req.body.longitudHabitual);
 
     if (req.body.autorizaContactoWhatsapp !== true) {
         return res.status(400).json({
@@ -277,6 +289,21 @@ router.post('/registro-profesional', async (req, res) => {
         });
     }
 
+    if (
+        !ubicacionHabitual ||
+        !coordenadasPresentes ||
+        !Number.isFinite(latitudHabitual) ||
+        !Number.isFinite(longitudHabitual) ||
+        latitudHabitual < -90 ||
+        latitudHabitual > 90 ||
+        longitudHabitual < -180 ||
+        longitudHabitual > 180
+    ) {
+        return res.status(400).json({
+            error: 'Debés seleccionar un lugar habitual de trabajo válido en el mapa'
+        });
+    }
+
     let profesionesPreparadas;
 
     try {
@@ -310,11 +337,20 @@ router.post('/registro-profesional', async (req, res) => {
                 usuario_id,
                 descripcion,
                 autoriza_contacto_whatsapp,
-                fecha_autorizacion_whatsapp
+                fecha_autorizacion_whatsapp,
+                ubicacion_habitual,
+                latitud_habitual,
+                longitud_habitual
              )
-             VALUES ($1, $2, TRUE, NOW())
+             VALUES ($1, $2, TRUE, NOW(), $3, $4, $5)
              RETURNING id`,
-            [usuario.id, descripcion || null]
+            [
+                usuario.id,
+                descripcion || null,
+                ubicacionHabitual,
+                latitudHabitual,
+                longitudHabitual
+            ]
         );
 
         const profesionalId = resultadoProfesional.rows[0].id;
@@ -727,6 +763,18 @@ router.post('/google/registro-profesional', async (req, res) => {
     const dni = texto(req.body.dni);
     const telefono = texto(req.body.telefono);
     const descripcion = texto(req.body.descripcion);
+    const ubicacionHabitual = texto(req.body.ubicacionHabitual);
+
+    const coordenadasPresentes =
+        req.body.latitudHabitual !== null &&
+        req.body.latitudHabitual !== undefined &&
+        req.body.latitudHabitual !== '' &&
+        req.body.longitudHabitual !== null &&
+        req.body.longitudHabitual !== undefined &&
+        req.body.longitudHabitual !== '';
+
+    const latitudHabitual = Number(req.body.latitudHabitual);
+    const longitudHabitual = Number(req.body.longitudHabitual);
 
     if (req.body.autorizaContactoWhatsapp !== true) {
         return res.status(400).json({
@@ -749,6 +797,21 @@ router.post('/google/registro-profesional', async (req, res) => {
     if (descripcion.length > 10000) {
         return res.status(400).json({
             error: 'La descripción es demasiado extensa'
+        });
+    }
+
+    if (
+        !ubicacionHabitual ||
+        !coordenadasPresentes ||
+        !Number.isFinite(latitudHabitual) ||
+        !Number.isFinite(longitudHabitual) ||
+        latitudHabitual < -90 ||
+        latitudHabitual > 90 ||
+        longitudHabitual < -180 ||
+        longitudHabitual > 180
+    ) {
+        return res.status(400).json({
+            error: 'Debés seleccionar un lugar habitual de trabajo válido en el mapa'
         });
     }
 
@@ -805,11 +868,20 @@ router.post('/google/registro-profesional', async (req, res) => {
                 usuario_id,
                 descripcion,
                 autoriza_contacto_whatsapp,
-                fecha_autorizacion_whatsapp
+                fecha_autorizacion_whatsapp,
+                ubicacion_habitual,
+                latitud_habitual,
+                longitud_habitual
              )
-             VALUES ($1, $2, TRUE, NOW())
+             VALUES ($1, $2, TRUE, NOW(), $3, $4, $5)
              RETURNING id`,
-            [usuario.id, descripcion || null]
+            [
+                usuario.id,
+                descripcion || null,
+                ubicacionHabitual,
+                latitudHabitual,
+                longitudHabitual
+            ]
         );
 
         const profesionalId = resultadoProfesional.rows[0].id;
@@ -890,6 +962,9 @@ router.get('/perfil', autenticar, async (req, res) => {
                 c.id AS cliente_id,
                 p.id AS profesional_id,
                 p.descripcion,
+                p.ubicacion_habitual,
+                p.latitud_habitual,
+                p.longitud_habitual,
                 p.estado_disponibilidad,
                 p.autoriza_contacto_whatsapp,
                 p.fecha_autorizacion_whatsapp,
@@ -933,6 +1008,9 @@ router.get('/perfil', autenticar, async (req, res) => {
         if (usuario.tipo === 'profesional') {
             usuario.profesional_id = primeraFila.profesional_id;
             usuario.descripcion = primeraFila.descripcion;
+            usuario.ubicacion_habitual = primeraFila.ubicacion_habitual;
+            usuario.latitud_habitual = primeraFila.latitud_habitual;
+            usuario.longitud_habitual = primeraFila.longitud_habitual;
             usuario.estado_disponibilidad =
                 primeraFila.estado_disponibilidad;
             usuario.autoriza_contacto_whatsapp =
@@ -956,6 +1034,179 @@ router.get('/perfil', autenticar, async (req, res) => {
         res.status(500).json({
             error: 'No se pudo obtener el perfil'
         });
+    }
+});
+
+
+// ACTUALIZAR PERFIL PROPIO DEL PROFESIONAL
+
+router.put('/perfil-profesional', autenticar, async (req, res) => {
+    if (req.usuario.tipo !== 'profesional') {
+        return res.status(403).json({
+            error: 'Solo los profesionales pueden modificar este perfil'
+        });
+    }
+
+    const telefono = texto(req.body.telefono);
+    const descripcion = texto(req.body.descripcion);
+    const ubicacionHabitual = texto(req.body.ubicacionHabitual);
+
+    const coordenadasPresentes =
+        req.body.latitudHabitual !== null &&
+        req.body.latitudHabitual !== undefined &&
+        req.body.latitudHabitual !== '' &&
+        req.body.longitudHabitual !== null &&
+        req.body.longitudHabitual !== undefined &&
+        req.body.longitudHabitual !== '';
+
+    const latitudHabitual = Number(req.body.latitudHabitual);
+    const longitudHabitual = Number(req.body.longitudHabitual);
+
+    if (!telefono || telefono.length > 30) {
+        return res.status(400).json({
+            error: 'Ingresá un teléfono válido'
+        });
+    }
+
+    if (descripcion.length > 10000) {
+        return res.status(400).json({
+            error: 'La descripción supera el límite permitido'
+        });
+    }
+
+    if (!ubicacionHabitual) {
+        return res.status(400).json({
+            error: 'Debés seleccionar tu ubicación habitual en el mapa'
+        });
+    }
+
+    if (
+        !coordenadasPresentes ||
+        !Number.isFinite(latitudHabitual) ||
+        latitudHabitual < -90 ||
+        latitudHabitual > 90 ||
+        !Number.isFinite(longitudHabitual) ||
+        longitudHabitual < -180 ||
+        longitudHabitual > 180
+    ) {
+        return res.status(400).json({
+            error: 'Las coordenadas de la ubicación no son válidas'
+        });
+    }
+
+    let profesionesPreparadas;
+
+    try {
+        profesionesPreparadas = prepararProfesiones(req.body.profesiones);
+    } catch (error) {
+        return res.status(400).json({
+            error: error.message
+        });
+    }
+
+    let conexion;
+
+    try {
+        conexion = await pool.connect();
+        await conexion.query('BEGIN');
+
+        const resultadoProfesional = await conexion.query(
+            `SELECT id
+             FROM profesionales
+             WHERE usuario_id = $1
+             FOR UPDATE`,
+            [req.usuario.id]
+        );
+
+        if (resultadoProfesional.rows.length === 0) {
+            await conexion.query('ROLLBACK');
+
+            return res.status(404).json({
+                error: 'No se encontró el perfil profesional'
+            });
+        }
+
+        const profesionalId = resultadoProfesional.rows[0].id;
+
+        await conexion.query(
+            `UPDATE usuarios
+             SET telefono = $1
+             WHERE id = $2`,
+            [telefono, req.usuario.id]
+        );
+
+        await conexion.query(
+            `UPDATE profesionales
+             SET descripcion = $1,
+                 ubicacion_habitual = $2,
+                 latitud_habitual = $3,
+                 longitud_habitual = $4
+             WHERE id = $5`,
+            [
+                descripcion || null,
+                ubicacionHabitual,
+                latitudHabitual,
+                longitudHabitual,
+                profesionalId
+            ]
+        );
+
+        await conexion.query(
+            `DELETE FROM profesional_profesion
+             WHERE profesional_id = $1`,
+            [profesionalId]
+        );
+
+        for (const item of profesionesPreparadas) {
+            const resultadoProfesion = await conexion.query(
+                `INSERT INTO profesiones (nombre)
+                 VALUES ($1)
+                 ON CONFLICT (nombre)
+                 DO UPDATE SET nombre = EXCLUDED.nombre
+                 RETURNING id`,
+                [item.profesion]
+            );
+
+            const profesionId = resultadoProfesion.rows[0].id;
+
+            await conexion.query(
+                `INSERT INTO profesional_profesion
+                    (profesional_id, profesion_id, tiene_matricula, matricula)
+                 VALUES ($1, $2, $3, $4)`,
+                [
+                    profesionalId,
+                    profesionId,
+                    item.tieneMatricula,
+                    item.matricula
+                ]
+            );
+        }
+
+        await conexion.query('COMMIT');
+
+        return res.json({
+            mensaje: 'Perfil profesional actualizado correctamente'
+        });
+    } catch (error) {
+        if (conexion) {
+            await conexion.query('ROLLBACK');
+        }
+
+        console.error('Error al actualizar perfil profesional:', error);
+
+        if (error.code === '23505') {
+            return res.status(409).json({
+                error: 'Ya existe un registro con esos datos'
+            });
+        }
+
+        return res.status(500).json({
+            error: 'No se pudo actualizar el perfil profesional'
+        });
+    } finally {
+        if (conexion) {
+            conexion.release();
+        }
     }
 });
 
