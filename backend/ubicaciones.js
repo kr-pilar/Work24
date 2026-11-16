@@ -44,6 +44,14 @@ router.get('/buscar', async (req, res) => {
         );
 
         if (!respuesta.ok) {
+            const detalle = await respuesta.text();
+
+            console.error(
+                'Error de Nominatim:',
+                'HTTP', respuesta.status,
+                detalle.slice(0, 300)
+            );
+
             return res.status(502).json({
                 error: 'El servicio de mapas no pudo realizar la búsqueda'
             });
